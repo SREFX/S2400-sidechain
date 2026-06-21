@@ -2,11 +2,11 @@
 #define DISTRHO_PLUGIN_INFO_H_INCLUDED
 
 #define DISTRHO_PLUGIN_NAME         "SCSend"
-#define DISTRHO_PLUGIN_URI          "http://fxxxxx.co.uk/plugins/SCSend_0.0.5"
+#define DISTRHO_PLUGIN_URI          "http://fxxxxx.co.uk/plugins/SCSend_0.0.6"
 #define DISTRHO_PLUGIN_HAS_UI       0
 #define DISTRHO_PLUGIN_IS_SYNTH     0
 #define DISTRHO_PLUGIN_NUM_INPUTS   2
 #define DISTRHO_PLUGIN_NUM_OUTPUTS  2
-#define DISTRHO_PLUGIN_NUM_PARAMS   5
+#define DISTRHO_PLUGIN_NUM_PARAMS   6
 
 #endif

@@ -6,6 +6,12 @@
 // Open namespace
 START_NAMESPACE_DISTRHO
 
+// struct to set RAM size
+struct StereoSidechain {
+    float left;
+    float right;
+};
+
 class SCSend : public Plugin {
 
 public:
@@ -17,8 +23,8 @@ protected:
     const char* getLabel() const override { return "SCSend"; }
     const char* getMaker() const override { return "Fxxxxx"; }
     const char* getLicense() const override { return "GPLv3"; }
-    uint32_t getVersion() const override { return d_version(0, 0, 5); }
-    int64_t getUniqueId() const override { return d_cconst('s', 'c', 'S', '5'); }
+    uint32_t getVersion() const override { return d_version(0, 0, 6); }
+    int64_t getUniqueId() const override { return d_cconst('s', 'c', 'S', '6'); }
 
     // init
     void initParameter(uint32_t index, Parameter& parameter) override;
@@ -33,14 +39,14 @@ protected:
 
 private:
     // params
-    float fThreshold, fGain, fAttackMs, fReleaseMs, fLink;
+    float fThreshold, fGain, fAttackMs, fReleaseMs, fLink, fBusParam;
 
     // internal states
     float fSampleRate, fEnvelopeL, fEnvelopeR, fAttackCoef, fReleaseCoef;
 
     // POSIX shared memory variables
-    float* fSharedControl;
-    int fSharedFd;
+    StereoSidechain* fBuses[4];
+    int fSharedFds[4];
 
     // helper
     

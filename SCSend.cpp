@@ -15,39 +15,48 @@ SCSend::SCSend()
     fAttackMs(10.0f),
     fReleaseMs(100.0f),
     fLink(1.0f),
+    fBusParam(0.0f),
     fSampleRate(48000.0f),
     fEnvelopeL(0.0f),
     fEnvelopeR(0.0f)
 {
-    // ask linux kernel to create/open a shared block of RAM
-    fSharedFd = shm_open("/s2400_sb", O_CREAT | O_RDWR, 0666);
+    // define 4 memory bus names
+    const char* busNames[4] = {"/sidechain_bus_a", "/sidechain_bus_b", "/sidechain_bus_c", "/sidechain_bus_d"};
 
-    if (fSharedFd >= 0) {
-        // set the size to exactly 2 floats (8 bytes)
-        ftruncate(fSharedFd, sizeof(float) * 2);
+    // loop through and open all 4 busses
+    for (int i = 0; i < 4; ++i) {
+        // ask linux kernel to create/open a shared block of RAM
+        fSharedFds[i] = shm_open(busNames[i], O_CREAT | O_RDWR, 0666);
 
-        // map that memory directly to pointer
-        fSharedControl = (float*)mmap(0, sizeof(float) * 2, PROT_READ | PROT_WRITE, MAP_SHARED, fSharedFd, 0);
+        if (fSharedFds[i] >= 0) {
+            // set the size to exactly 2 floats (8 bytes)
+            ftruncate(fSharedFds[i], sizeof(StereoSidechain));
 
-        // init volume to 1.0 so SCRecv isn't muted by default
-        if (fSharedControl != (float*)MAP_FAILED) {
-            fSharedControl[0] = 1.0f;
-            fSharedControl[1] = 1.0f;
+            // map that memory directly to pointer
+            fBuses[i] = (StereoSidechain*)mmap(0, sizeof(StereoSidechain), PROT_READ | PROT_WRITE, MAP_SHARED, fSharedFds[i], 0);
+
+            // init volume to 1.0 so SCRecv isn't muted by default
+            if (fBuses[i] != (StereoSidechain*)MAP_FAILED) {
+                fBuses[i]->left = 1.0f;
+                fBuses[i]->right = 1.0f;
+            }
+        } else {
+            fBuses[i] = (StereoSidechain*)MAP_FAILED;
         }
-    } else {
-        fSharedControl = (float*)MAP_FAILED;
     }
-    
     activate();
 }
 
 SCSend::~SCSend() {
-    // unlink and close memory safely when deleted
-    if (fSharedControl != (float*)MAP_FAILED) {
-        munmap(fSharedControl, sizeof(float) * 2);
-    }
-    if (fSharedFd >= 0) {
-        close(fSharedFd);
+    // loop through and safely close all four buses
+    for (int i = 0; i < 4; ++i) {
+        // unlink and close memory safely when deleted
+        if (fBuses[i] != (StereoSidechain*)MAP_FAILED) {
+            munmap(fBuses[i], sizeof(StereoSidechain));
+        }
+        if (fSharedFds[i] >= 0) {
+        close(fSharedFds[i]);
+        }
     }
 }
 
@@ -109,6 +118,31 @@ void SCSend::initParameter(uint32_t index, Parameter& parameter) {
         parameter.enumValues.values[1].label = "On";
         break;
 
+        case 5:
+        parameter.name = "Send Bus";
+        parameter.symbol = "sendBus";
+
+        parameter.hints = kParameterIsAutomatable | kParameterIsInteger;
+        parameter.ranges.min = 0;
+        parameter.ranges.max = 3;
+        parameter.ranges.def = 0;
+
+        parameter.enumValues.count = 4;
+        parameter.enumValues.restrictedMode = true;
+        parameter.enumValues.values = new ParameterEnumerationValue[4];
+
+        parameter.enumValues.values[0].value = 0;
+        parameter.enumValues.values[0].label = "A";
+
+        parameter.enumValues.values[1].value = 1;
+        parameter.enumValues.values[1].label = "B";
+
+        parameter.enumValues.values[2].value = 2;
+        parameter.enumValues.values[2].label = "C";
+
+        parameter.enumValues.values[3].value = 3;
+        parameter.enumValues.values[3].label = "D";
+        break;
     }
 }
 
@@ -119,6 +153,7 @@ float SCSend::getParameterValue(uint32_t index) const {
         case 2: return fAttackMs;
         case 3: return fReleaseMs;
         case 4: return fLink;
+        case 5: return fBusParam;
         default: return 0.0f;
     }
 }
@@ -151,6 +186,10 @@ void SCSend::setParameterValue(uint32_t index, float value) {
         case 4:
         fLink = value;
         break;
+
+        case 5:
+        fBusParam = value;
+        break;
     }
 }
 
@@ -164,17 +203,16 @@ void SCSend::activate() {
 
 void SCSend::run(const float** inputs, float** outputs, uint32_t frames) {
     const float* inL = inputs[0]; // left audio in
-    const float* inR = inputs[1]; //(inputs[1] != nullptr) ? inputs[1] : inputs[0]; // right audio in
+    const float* inR = (inputs[1] != nullptr) ? inputs[1] : inputs[0]; // right audio in
     float* outL = outputs[0]; // left audio out
-    float* outR = outputs[1];
-    //bool hasRightOutput = (outputs[1] != nullptr); // right audio out
+    bool hasRightOutput = (outputs[1] != nullptr); // right audio out
 
     for (uint32_t i = 0; i < frames; ++i) {
-        // find loudest peak of either channel
+        // absolute signals
         float absL = std::abs(inL[i]) * fGain;
         float absR = std::abs(inR[i]) * fGain;
         
-        // stereo link
+        // stereo link, find loudest pont of either channel
         if (fLink > 0.5f) {
             // linked
             float peak = std::max(absL, absR);
@@ -214,25 +252,27 @@ void SCSend::run(const float** inputs, float** outputs, uint32_t frames) {
         sidechainL = std::max(0.0f, std::min(1.0f, sidechainL));
         sidechainR = std::max(0.0f, std::min(1.0f, sidechainR));
 
+        // bus writing
+        int currentBus = (int)fBusParam;
+
         // write to the mapped RAM
-        if (fSharedControl != nullptr && fSharedControl != (float*)MAP_FAILED) {
-            fSharedControl[0] = sidechainL;
-            fSharedControl[1] = sidechainR;
+        if (fBuses[currentBus] != (StereoSidechain*)MAP_FAILED) {
+            fBuses[currentBus]->left = sidechainL;
+            fBuses[currentBus]->right = sidechainR;
         }
 
         // audio out is uneffected
         outL[i] = inL[i];
-        outR[i] = inR[i];
-        /*if (hasRightOutput) {
+        if (hasRightOutput) {
             outputs[1][i] = inR[i];
-        }*/
+        }
     }
 }
 
-// Library entry point
+// library entry point
 Plugin* createPlugin() {
     return new SCSend();
 }
 
-// Close namespace
+// close namespace
 END_NAMESPACE_DISTRHO
