@@ -1,0 +1,119 @@
+@prefix dg:    <http://www.darkglass.com/lv2/ns#> .
+@prefix doap:  <http://usefulinc.com/ns/doap#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix midi:  <http://lv2plug.in/ns/ext/midi#> .
+@prefix mod:   <http://moddevices.com/ns/mod#> .
+@prefix opts:  <http://lv2plug.in/ns/ext/options#> .
+@prefix pg:    <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix patch: <http://lv2plug.in/ns/ext/patch#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix spdx:  <http://spdx.org/rdf/terms#> .
+@prefix unit:  <http://lv2plug.in/ns/extensions/units#> .
+
+<http://fxxxxx.co.uk/plugins/SCSend_0.0.5>
+    a lv2:Plugin, doap:Project ;
+
+    lv2:extensionData opts:interface ;
+
+    lv2:optionalFeature <http://lv2plug.in/ns/ext/buf-size#boundedBlockLength> ;
+
+    lv2:requiredFeature opts:options ,
+                        <http://lv2plug.in/ns/ext/urid#map> ;
+
+    opts:supportedOption <http://lv2plug.in/ns/ext/buf-size#nominalBlockLength> ,
+                         <http://lv2plug.in/ns/ext/buf-size#maxBlockLength> ,
+                         <http://lv2plug.in/ns/ext/parameters#sampleRate> ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:AudioPort ;
+        lv2:index 0 ;
+        lv2:symbol "lv2_audio_in_1" ;
+        lv2:name "Audio Input 1" ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:AudioPort ;
+        lv2:index 1 ;
+        lv2:symbol "lv2_audio_in_2" ;
+        lv2:name "Audio Input 2" ;
+    ] ;
+
+    lv2:port [
+        a lv2:OutputPort, lv2:AudioPort ;
+        lv2:index 2 ;
+        lv2:symbol "lv2_audio_out_1" ;
+        lv2:name "Audio Output 1" ;
+    ] ,
+    [
+        a lv2:OutputPort, lv2:AudioPort ;
+        lv2:index 3 ;
+        lv2:symbol "lv2_audio_out_2" ;
+        lv2:name "Audio Output 2" ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 4 ;
+        lv2:name "Threshold" ;
+        lv2:symbol "threshold" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 5 ;
+        lv2:name "Gain" ;
+        lv2:symbol "gain" ;
+        lv2:default 1 ;
+        lv2:minimum 1 ;
+        lv2:maximum 12 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 6 ;
+        lv2:name "Attack (ms)" ;
+        lv2:symbol "attack" ;
+        lv2:default 10 ;
+        lv2:minimum 1 ;
+        lv2:maximum 100 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 7 ;
+        lv2:name "Release (ms)" ;
+        lv2:symbol "release" ;
+        lv2:default 100 ;
+        lv2:minimum 10 ;
+        lv2:maximum 1000 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 8 ;
+        lv2:name "Stereo Link" ;
+        lv2:symbol "link" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:enumeration ;
+        lv2:scalePoint [
+            rdfs:label  "Off" ;
+            rdf:value 0 ;
+        ] ,
+        [
+            rdfs:label  "On" ;
+            rdf:value 1 ;
+        ] ;
+        lv2:portProperty lv2:integer ;
+    ] ;
+
+    doap:name "SCSend" ;
+    doap:license <http://spdx.org/licenses/GPL-3.0-only.html> ;
+
+    doap:maintainer [
+        foaf:name "Fxxxxx" ;
+    ] ;
+
+    lv2:microVersion 5 ;
+    lv2:minorVersion 0 .
